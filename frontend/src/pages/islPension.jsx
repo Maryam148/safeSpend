@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import axios from 'axios';
+import api from '../api';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../authContext';
 
@@ -37,27 +37,27 @@ export default function IslamicPensionPlanner() {
     };
 
     try {
-      const response = await axios.post('http://localhost:8000/pension-planner', backendData);
+      const response = await api.post('/pension-planner', backendData);
       const calculationResult = response.data;
       setResult(calculationResult);
 
-      // Insert into Supabase with the actual result data
-      const { data, error: insertError } = await supabase
-        .from("calculation_history")
-        .insert([
-          {
-            user_id: user.id,
-            calculator: "Pension Planner",
-            inputs: JSON.stringify(backendData),
-            output: JSON.stringify(calculationResult), // Use the actual result
-            created_at: new Date().toISOString() // Explicitly set created_at
-          }
-        ]);
+      // Only save to history if user is logged in
+      if (user) {
+        const { error: insertError } = await supabase
+          .from("calculation_history")
+          .insert([
+            {
+              user_id: user.id,
+              calculator: "Pension Planner",
+              inputs: JSON.stringify(backendData),
+              output: JSON.stringify(calculationResult),
+              created_at: new Date().toISOString()
+            }
+          ]);
 
-      if (insertError) {
-        console.error("Insert error:", insertError.message);
-        // Optional: Show error to user
-        setError('Calculation completed but failed to save to history.');
+        if (insertError) {
+          console.error("Insert error:", insertError.message);
+        }
       }
 
     } catch (err) {

@@ -43,23 +43,23 @@ export default function IstisnaCalculator() {
       const calculationResult = res.data;
       setResult(calculationResult);
 
-      // Insert into Supabase with the actual result data
-      const { data, error: insertError } = await supabase
-        .from("calculation_history")
-        .insert([
-          {
-            user_id: user.id,
-            calculator: "Istisna",
-            inputs: JSON.stringify(backendData),
-            output: JSON.stringify(calculationResult), // Use the actual result
-            created_at: new Date().toISOString() // Explicitly set created_at
-          }
-        ]);
+      // Only save to history if user is logged in
+      if (user) {
+        const { error: insertError } = await supabase
+          .from("calculation_history")
+          .insert([
+            {
+              user_id: user.id,
+              calculator: "Istisna",
+              inputs: JSON.stringify(backendData),
+              output: JSON.stringify(calculationResult),
+              created_at: new Date().toISOString()
+            }
+          ]);
 
-      if (insertError) {
-        console.error("Insert error:", insertError.message);
-        // Optional: Show error to user
-        setError('Calculation completed but failed to save to history.');
+        if (insertError) {
+          console.error("Insert error:", insertError.message);
+        }
       }
 
     } catch (err) {

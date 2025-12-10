@@ -40,23 +40,23 @@ export default function QardHasanPlanner() {
       const calculationResult = res.data;
       setResult(calculationResult);
 
-      // Insert into Supabase with the actual result data
-      const { data, error: insertError } = await supabase
-        .from("calculation_history")
-        .insert([
-          {
-            user_id: user.id,
-            calculator: "Qard-e-Hasan",
-            inputs: JSON.stringify(backendData),
-            output: JSON.stringify(calculationResult),
-            created_at: new Date().toISOString()
-          }
-        ]);
+      // Only save to history if user is logged in
+      if (user) {
+        const { error: insertError } = await supabase
+          .from("calculation_history")
+          .insert([
+            {
+              user_id: user.id,
+              calculator: "Qard-e-Hasan",
+              inputs: JSON.stringify(backendData),
+              output: JSON.stringify(calculationResult),
+              created_at: new Date().toISOString()
+            }
+          ]);
 
-      if (insertError) {
-        console.error("Insert error:", insertError.message);
-        // Optional: Show error to user but don't interrupt the main flow
-        setError('Calculation completed but failed to save to history.');
+        if (insertError) {
+          console.error("Insert error:", insertError.message);
+        }
       }
 
     } catch (err) {

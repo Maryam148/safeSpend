@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../api';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../authContext';
@@ -18,6 +18,35 @@ export default function ZakatCalculator() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [pricesLoading, setPricesLoading] = useState(false);
+  const [pricesInfo, setPricesInfo] = useState(null);
+
+  // Fetch live metal prices on component mount
+  useEffect(() => {
+    fetchLivePrices();
+  }, []);
+
+  const fetchLivePrices = async () => {
+    setPricesLoading(true);
+    try {
+      const res = await api.get('/prices/metals');
+      const prices = res.data;
+      setForm(prev => ({
+        ...prev,
+        gold_price: prices.gold_price_per_gram.toString(),
+        silver_price: prices.silver_price_per_gram.toString(),
+      }));
+      setPricesInfo({
+        lastUpdated: prices.last_updated,
+        source: prices.source,
+      });
+    } catch (err) {
+      console.error('Failed to fetch live prices:', err);
+      // Keep manual entry option if API fails
+    } finally {
+      setPricesLoading(false);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -45,23 +74,23 @@ export default function ZakatCalculator() {
       const calculationResult = res.data;
       setResult(calculationResult);
 
-      // Insert into Supabase with the actual result data
-      const { data, error: insertError } = await supabase
-        .from("calculation_history")
-        .insert([
-          {
-            user_id: user.id,
-            calculator: "Zakat",
-            inputs: JSON.stringify(backendData),
-            output: JSON.stringify(calculationResult), // Use the actual result
-            created_at: new Date().toISOString() // Explicitly set created_at
-          }
-        ]);
+      // Only save to history if user is logged in
+      if (user) {
+        const { error: insertError } = await supabase
+          .from("calculation_history")
+          .insert([
+            {
+              user_id: user.id,
+              calculator: "Zakat",
+              inputs: JSON.stringify(backendData),
+              output: JSON.stringify(calculationResult),
+              created_at: new Date().toISOString()
+            }
+          ]);
 
-      if (insertError) {
-        console.error("Insert error:", insertError.message);
-        // Optional: Show error to user
-        setError('Calculation completed but failed to save to history.');
+        if (insertError) {
+          console.error("Insert error:", insertError.message);
+        }
       }
 
     } catch (err) {
@@ -76,19 +105,41 @@ export default function ZakatCalculator() {
     <div className="max-w-2xl mx-auto p-6">
       <h1 className="text-2xl font-semibold mb-4">Zakat Calculator</h1>
       
+      {/* Live Prices Info */}
+      {pricesInfo && (
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm">
+          <div className="flex justify-between items-center">
+            <span className="text-blue-700">
+              📈 Live prices loaded from {pricesInfo.source}
+            </span>
+            <button
+              type="button"
+              onClick={fetchLivePrices}
+              disabled={pricesLoading}
+              className="text-blue-600 hover:text-blue-800 underline text-xs"
+            >
+              {pricesLoading ? 'Refreshing...' : 'Refresh Prices'}
+            </button>
+          </div>
+        </div>
+      )}
+      
       <form onSubmit={handleSubmit} className="space-y-3">
         {[
           { name: 'cash', label: 'Cash (PKR)' },
           { name: 'gold_grams', label: 'Gold (grams)' },
-          { name: 'gold_price', label: 'Gold price per gram (PKR)' },
+          { name: 'gold_price', label: 'Gold price per gram (PKR)', isPrice: true },
           { name: 'silver_grams', label: 'Silver (grams)' },
-          { name: 'silver_price', label: 'Silver price per gram (PKR)' },
+          { name: 'silver_price', label: 'Silver price per gram (PKR)', isPrice: true },
           { name: 'business_assets', label: 'Business Assets (PKR)' },
           { name: 'liabilities', label: 'Liabilities (PKR)' }
-        ].map(({ name, label }) => (
+        ].map(({ name, label, isPrice }) => (
           <div key={name}>
             <label className="block text-sm font-medium mb-1">
               {label}
+              {isPrice && pricesInfo && (
+                <span className="text-xs text-green-600 ml-2">(Live price)</span>
+              )}
             </label>
             <input
               type="number"

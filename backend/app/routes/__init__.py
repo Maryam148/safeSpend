@@ -7,5 +7,19 @@ from .takaful import router as takaful_router
 from .qarzehasan import router as qarz_router
 from .partnership import router as partnership_router
 from .pension import router as pension_router
+from .prices import router as prices_router
+from .chat import router as chat_router
 
-all_routes = [zakat_router, leasing_router, mudarabah_router, murabaha_router, istisna_router, takaful_router, qarz_router, partnership_router, pension_router]
+all_routes = [
+    zakat_router, 
+    leasing_router, 
+    mudarabah_router, 
+    murabaha_router, 
+    istisna_router, 
+    takaful_router, 
+    qarz_router, 
+    partnership_router, 
+    pension_router,
+    prices_router,
+    chat_router
+]

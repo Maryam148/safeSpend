@@ -1,107 +1,60 @@
 import React, { useState, useRef, useEffect } from "react";
-import axios from "axios";
-import { MessageCircle } from "lucide-react"; // Only Chat icon needed now
+import api from "../api";
+import { MessageCircle } from "lucide-react";
 
 export default function ChatBot() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
     {
-      // Initial message from the bot (model)
       role: "model",
       text: "Assalamualaikum! I can help with Islamic finance calculators and Shariah-compliant financial queries. How can I help?",
     },
   ]);
   const [userInput, setUserInput] = useState("");
   const [loading, setLoading] = useState(false);
-  // Ref to automatically scroll to the latest message
   const messagesEndRef = useRef(null);
 
-  // Your Gemini API Key and Model URL
-  // IMPORTANT: For security, in a real application, never expose your API key directly in client-side code.
-  // Use a backend proxy to handle API requests.
-  const GEMINI_API_KEY = "AIzaSyBduGgaGBgdlzLBnol6kMalqPYNybP29W8"; // Replace with your actual API key
-  // Using gemini-1.5-flash for faster responses. Ensure this model is enabled for your API key.
-  const GEMINI_CHAT_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-
-
-  // Function to scroll to the bottom of the chat window
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Effect to scroll to bottom whenever messages or loading state changes
   useEffect(() => {
     scrollToBottom();
-  }, [messages, loading]); // Removed isSuggesting from dependencies
+  }, [messages, loading]);
 
-  // Main function to send messages to the chatbot
   const sendMessage = async () => {
-    if (!userInput.trim()) return; // Prevent sending empty messages
+    if (!userInput.trim()) return;
 
-    // Add the user's message to the chat history
     const newUserMessage = { role: "user", text: userInput };
     const updatedMessages = [...messages, newUserMessage];
-    setMessages(updatedMessages); // Update state immediately for user to see their message
-    setUserInput(""); // Clear the input field
-    setLoading(true); // Show loading indicator for main chat
-
-    // Define a system instruction for the model. This guides the AI's behavior.
-    const systemInstructionContent = {
-      role: "user", // System instructions are typically sent under the 'user' role at the start
-      parts: [
-        {
-          text: `You are an Islamic finance assistant.
-          Only answer questions about Islamic financial calculators, Shariah-compliant finance, and related financial topics.
-          If the question is unrelated, respond with exactly: "I can only assist with Islamic finance and related topics."
-          Be concise and helpful.`,
-        },
-      ],
-    };
-
-    // Format the entire conversation history for the Gemini API, ensuring roles alternate
-    const conversationHistoryForApi = updatedMessages.map((msg) => ({
-      role: msg.role === "bot" ? "model" : msg.role, // Map 'bot' to 'model' for API
-      parts: [{ text: msg.text }],
-    }));
-
-    // Construct the final contents array for the API call
-    // The system instruction comes first, then the actual conversation history.
-    // This ensures the correct 'user' (system) -> 'model' (bot's greeting) -> 'user' (user's input) alternation.
-    const contentsToSend = [systemInstructionContent, ...conversationHistoryForApi];
+    setMessages(updatedMessages);
+    setUserInput("");
+    setLoading(true);
 
     try {
-      // Make the API call with the entire conversation history and system instruction
-      const response = await axios.post(
-        GEMINI_CHAT_URL, // Use the chat URL
-        {
-          contents: contentsToSend, // Send all previous messages + current instruction
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      // Call backend API instead of directly calling Gemini
+      const response = await api.post("/chat", {
+        message: userInput,
+        history: updatedMessages.map((msg) => ({
+          role: msg.role === "bot" ? "model" : msg.role,
+          text: msg.text,
+        })),
+      });
 
-      // Extract the bot's reply from the API response
-      const botReply =
-        response.data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-        "Sorry, I couldn't process your request. Please try again.";
+      const botReply = response.data?.reply || "Sorry, I couldn't process your request. Please try again.";
 
-      // Add the bot's reply to the chat history
       setMessages((prevMessages) => [
         ...prevMessages,
         { role: "bot", text: botReply },
       ]);
     } catch (error) {
-      console.error("Gemini API error:", error);
-      // Display an error message if the API call fails
+      console.error("Chat API error:", error);
       setMessages((prevMessages) => [
         ...prevMessages,
         { role: "bot", text: "Error contacting AI service. Please try again." },
       ]);
     } finally {
-      setLoading(false); // Hide loading indicator
+      setLoading(false);
     }
   };
 
@@ -139,9 +92,9 @@ export default function ChatBot() {
             {messages.map((msg, index) => (
               <div
                 key={index}
-                className={`max-w-[75%] p-3 rounded-xl shadow-sm break-words ${ // Increased padding, rounded corners
+                className={`max-w-[75%] p-3 rounded-xl shadow-sm break-words ${
                   msg.role === "user"
-                    ? "bg-blue-600 text-white self-end ml-auto" // User messages
+                    ? "bg-white text-gray-800 border border-gray-300 self-end ml-auto" // User messages
                     : "bg-gray-200 text-gray-800 self-start mr-auto" // Bot messages
                 }`}
               >
