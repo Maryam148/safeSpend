@@ -14,6 +14,7 @@ import BusinessPartnershipSplitCalculator from './pages/bPartnership';
 import IslamicPensionPlanner from './pages/islPension';
 import Documentation from './pages/docs';
 import Auth from './pages/login';
+import ResetPassword from './pages/resetPassword';
 import { useAuth } from './authContext';
 import HistoryPanel from './components/historyPanel';
 import ChatBot from './components/chatbot';
@@ -44,6 +45,7 @@ function App() {
         <Route path="/pension" element={<IslamicPensionPlanner />} />
         <Route path="/docs" element={<Documentation />} />
         <Route path="/login" element={user ? <Navigate to="/home" /> : <Auth />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
       </Routes>
       
       {/* History panel and ChatBot only for logged-in users */}
