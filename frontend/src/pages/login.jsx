@@ -20,19 +20,6 @@ const Auth = () => {
       if (user){navigate('/home')}
     },[user, navigate])
 
-    const checkIfEmailExists = async (email) => {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password: 'dummy123' // just any wrong password
-      });
-
-      if (error && error.message.includes('Invalid login credentials')) {
-          return true; // Email exists, password is wrong
-      }
-
-      return false;
-    };
-
     const handleForgotPassword = async (e) => {
         e.preventDefault()
         setLoading(true)
@@ -59,12 +46,7 @@ const Auth = () => {
         try{
             let response;
             if (isSignup) {
-                const exists = await checkIfEmailExists(email);
-                if (exists) {
-                    setMessage('Email already in use. Please sign in.');
-                    setLoading(false);
-                    return;
-                }
+                // Try to sign up directly - Supabase will tell us if email exists
                 const {data, error} = await supabase.auth.signUp({
                     email,
                     password,
@@ -74,8 +56,26 @@ const Auth = () => {
                     }
                     }
                 })
-                if (error) throw error;
-                setMessage("Check your email for confirmation link")
+                if (error) {
+                    // Check if error is specifically due to email already existing
+                    const errorMsg = error.message.toLowerCase();
+                    if (errorMsg.includes('already registered') || 
+                        errorMsg.includes('user already registered') ||
+                        errorMsg.includes('email address is already registered')) {
+                        setMessage('Email already in use. Please sign in.');
+                    } else {
+                        // For other errors, show the actual error message
+                        setMessage(error.message);
+                    }
+                    setLoading(false);
+                    return;
+                }
+                // Check if signup was successful (even if email confirmation is required)
+                if (data.user) {
+                    setMessage("Check your email for confirmation link");
+                } else {
+                    setMessage("Signup initiated. Please check your email.");
+                }
             }else{
                 const {data, error} = await supabase.auth.signInWithPassword({
                     email,

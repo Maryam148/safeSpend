@@ -17,22 +17,48 @@ const ResetPassword = () => {
     useEffect(() => {
         // Check if this is a valid password recovery session
         const checkRecoverySession = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
+            // Check URL hash for recovery token (Supabase adds it to the URL hash)
+            const hashParams = new URLSearchParams(window.location.hash.substring(1));
+            const accessToken = hashParams.get('access_token');
+            const type = hashParams.get('type');
+            
+            // Also check query params (some Supabase setups use query params)
+            const queryParams = new URLSearchParams(window.location.search);
+            const queryType = queryParams.get('type');
+            const queryToken = queryParams.get('access_token');
+            
+            const recoveryType = type || queryType;
+            const token = accessToken || queryToken;
             
             // Listen for PASSWORD_RECOVERY event
             const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
                 if (event === 'PASSWORD_RECOVERY') {
                     setIsValidSession(true);
                     setCheckingSession(false);
+                } else if (event === 'SIGNED_IN' && (recoveryType === 'recovery' || token)) {
+                    // If signed in with recovery token in URL, it's a recovery session
+                    setIsValidSession(true);
+                    setCheckingSession(false);
                 }
             });
 
-            // If there's already a session from recovery link, allow password reset
-            if (session) {
-                setIsValidSession(true);
-            }
+            // Check current session
+            const { data: { session } } = await supabase.auth.getSession();
             
-            setCheckingSession(false);
+            // If we have recovery type in URL or recovery token, allow password reset
+            if (recoveryType === 'recovery' || token) {
+                setIsValidSession(true);
+                setCheckingSession(false);
+            } else if (session) {
+                // If there's a session, check if it's from a recovery (might have been processed already)
+                // Allow password reset if session exists (user clicked recovery link)
+                setIsValidSession(true);
+                setCheckingSession(false);
+            } else {
+                // No session and no recovery token - invalid
+                setIsValidSession(false);
+                setCheckingSession(false);
+            }
 
             return () => subscription.unsubscribe();
         };
