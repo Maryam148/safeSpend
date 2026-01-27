@@ -55,7 +55,7 @@ SafeSpend is a full-stack fintech application designed to help users manage and 
 
 ### Backend
 
-* Node.js with Express / NestJS
+* Python
 * RESTful APIs
 * Secure authentication and authorization
 
